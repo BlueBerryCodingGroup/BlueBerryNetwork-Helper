@@ -44,7 +44,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish to GitHub Packages
-        run: ./gradlew publish
+        run: ./gradlew publish -Pversion=${{ env.TAG }}
         env:
           USERNAME: ${{ github.actor }}
           TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -53,8 +53,8 @@ jobs:
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: build/libs/BlueBerryNetworkHelper-v1.jar
-          asset_name: BlueBerryNetworkHelper-v1.jar
+          asset_path: build/libs/BlueBerryNetworkHelper-${{ env.TAG }}.jar
+          asset_name: BlueBerryNetworkHelper-${{ env.TAG }}.jar
           asset_content_type: application/java-archive
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
