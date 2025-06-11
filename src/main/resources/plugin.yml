@@ -1,0 +1,8 @@
+name: BlueBerryNetworkHelper
+version: 'v1'
+main: xyz.blackdev.blueBerryNetworkHelper.BlueBerryNetworkHelper
+api-version: '1.21'
+prefix: SMP
+authors: [ BlackDev ]
+description: DeathFinder for Minecraft so players can find there last Death Point
+website: https://blackdev.xyz
