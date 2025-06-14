@@ -1,7 +1,6 @@
 name: Build and Release Gradle Project
 
 on:
-  workflow_dispatch:
   push:
     branches: [ main ]
 
@@ -16,7 +15,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17' # Adjust to your Java version
+          java-version: '17'  # Adjust as needed
 
       - name: Setup Gradle
         uses: gradle/gradle-build-action@v3
@@ -24,7 +23,7 @@ jobs:
       - name: Build with Gradle
         run: ./gradlew build
 
-      - name: Get current date and time
+      - name: Get current date and time for tag
         id: date
         run: echo "TAG_NAME=$(date -u +'%Y-%m-%d_%H-%M-%S')" >> $GITHUB_OUTPUT
 
@@ -43,17 +42,17 @@ jobs:
         with:
           name: built-jar
 
-      - name: Get current date and time
+      - name: Get current date and time for tag
         id: date
         run: echo "TAG_NAME=$(date -u +'%Y-%m-%d_%H-%M-%S')" >> $GITHUB_OUTPUT
 
-      - name: Create Release
-        uses: actions/create-release@v1
+      - name: Create Release and Upload JAR
+        uses: softprops/action-gh-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ steps.date.outputs.TAG_NAME }}
-          release_name: "Release ${{ steps.date.outputs.TAG_NAME }}"
+          name: "Release ${{ steps.date.outputs.TAG_NAME }}"
           body: "Automated release created by GitHub Actions"
           draft: false
           prerelease: false
