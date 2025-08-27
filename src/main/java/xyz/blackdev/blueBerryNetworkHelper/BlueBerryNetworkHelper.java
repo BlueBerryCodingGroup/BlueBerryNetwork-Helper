@@ -11,9 +11,6 @@ public final class BlueBerryNetworkHelper extends JavaPlugin {
             .build();
     @Override
     public void onEnable() {
-        System.out.println("🔧 URI: " + System.getenv("MONGO_URI"));
-        System.out.println("📦 DB: " + System.getenv("MONGO_DB"));
-
         logger.log("Starting BlueBerryNetworkHelper...", "blue", "purple");
     }
 
