@@ -3,7 +3,7 @@ name: Build & Release
 on:
   push:
     branches:
-      - '**'   # Run on every branch push
+      - '**'   # run on every push to any branch
 
 permissions:
   contents: write
@@ -13,8 +13,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - name: Checkout code (full history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -25,13 +27,49 @@ jobs:
       - name: Build with Gradle
         run: ./gradlew build
 
-      - name: Generate changelog
+      # Determine commit range for this push
+      - name: Compute changelog range
+        id: range
+        shell: bash
+        run: |
+          BEFORE="${{ github.event.before }}"
+          if [[ "$BEFORE" == "0000000000000000000000000000000000000000" || -z "$BEFORE" ]]; then
+            # New branch or first push: start at the first commit in history
+            FROM_REF="$(git rev-list --max-parents=0 HEAD | tail -n1)"
+          else
+            FROM_REF="$BEFORE"
+          fi
+          echo "from_ref=$FROM_REF" >> "$GITHUB_OUTPUT"
+          echo "to_ref=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+
+      - name: Generate changelog (commit mode, no tags required)
         id: changelog
-        uses: mikepenz/release-changelog-builder-action@v3
+        uses: mikepenz/release-changelog-builder-action@v5
         with:
-          configuration: "release-changelog-builder-config.json"
+          mode: "COMMIT"
+          fromTag: ${{ steps.range.outputs.from_ref }}
+          toTag: ${{ steps.range.outputs.to_ref }}
+          configurationJson: |
+            {
+              "template": "#{{CHANGELOG}}",
+              "categories": [
+                { "title": "## Feat", "labels": ["feat","feature"] },
+                { "title": "## Fix",  "labels": ["fix","bug"] },
+                { "title": "## Other", "labels": [] }
+              ],
+              "label_extractor": [
+                {
+                  "pattern": "^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test){1}(\\([\\w\\-\\.]+\\))?(!)?: ([\\w ])+([\\s\\S]*)",
+                  "on_property": "title",
+                  "target": "$1"
+                }
+              ]
+            }
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create GitHub Release
+        if: success()
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ github.sha }}
