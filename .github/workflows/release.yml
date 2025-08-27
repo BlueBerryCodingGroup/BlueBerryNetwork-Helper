@@ -3,7 +3,7 @@ name: Build & Release
 on:
   push:
     branches:
-      - '**'   # run on every push to any branch
+      - '**'   # run on every branch push
 
 permissions:
   contents: write
@@ -27,31 +27,35 @@ jobs:
       - name: Build with Gradle
         run: ./gradlew build
 
-      # Determine commit range for this push
-      - name: Compute changelog range
-        id: range
+      # Compute safe tag values and commit range
+      - name: Compute variables
+        id: vars
         shell: bash
         run: |
+          SHORT_SHA="$(git rev-parse --short=7 HEAD)"
+          SAFE_TAG="commit-${SHORT_SHA}"   # avoids 40-hex-only tag constraint
+          echo "short_sha=${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+          echo "safe_tag=${SAFE_TAG}" >> "$GITHUB_OUTPUT"
+
           BEFORE="${{ github.event.before }}"
           if [[ "$BEFORE" == "0000000000000000000000000000000000000000" || -z "$BEFORE" ]]; then
-            # New branch or first push: start at the first commit in history
             FROM_REF="$(git rev-list --max-parents=0 HEAD | tail -n1)"
           else
             FROM_REF="$BEFORE"
           fi
-          echo "from_ref=$FROM_REF" >> "$GITHUB_OUTPUT"
+          echo "from_ref=${FROM_REF}" >> "$GITHUB_OUTPUT"
           echo "to_ref=${{ github.sha }}" >> "$GITHUB_OUTPUT"
 
-      - name: Generate changelog (commit mode, no tags required)
+      - name: Generate changelog (commit mode)
         id: changelog
         uses: mikepenz/release-changelog-builder-action@v5
         with:
           mode: "COMMIT"
-          fromTag: ${{ steps.range.outputs.from_ref }}
-          toTag: ${{ steps.range.outputs.to_ref }}
+          fromTag: ${{ steps.vars.outputs.from_ref }}
+          toTag: ${{ steps.vars.outputs.to_ref }}
           configurationJson: |
             {
-              "template": "#{{CHANGELOG}}",
+              "template": "# Changelog for ${{ steps.vars.outputs.safe_tag }}\n\n{{CHANGELOG}}",
               "categories": [
                 { "title": "## Feat", "labels": ["feat","feature"] },
                 { "title": "## Fix",  "labels": ["fix","bug"] },
@@ -69,12 +73,15 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create GitHub Release
-        if: success()
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ github.sha }}
-          name: Release ${{ github.sha }}
-          body: ${{ steps.changelog.outputs.changelog }}
+          tag_name: ${{ steps.vars.outputs.safe_tag }}     # e.g., commit-3eb4729
+          name: Release ${{ steps.vars.outputs.safe_tag }} # shows short tag
+          body: |
+            Commit: ${{ github.sha }}
+            Branch: ${{ github.ref_name }}
+
+            ${{ steps.changelog.outputs.changelog }}
           files: build/libs/*.jar
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
